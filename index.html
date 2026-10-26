@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#070708" />
+    <link rel="preconnect" href="https://i.ytimg.com" crossorigin />
+    <link rel="preconnect" href="https://img.youtube.com" />
+    <link rel="preconnect" href="https://www.youtube.com" />
+    <link rel="icon" type="image/svg+xml" href="./logo.svg" />
+    <title>Platinum</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        background: #070708;
+        overflow: hidden;
+      }
+      #root {
+        height: 100%;
+      }
+      .boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        background:
+          radial-gradient(42% 38% at 50% 38%, rgba(201, 184, 255, 0.14), transparent 72%),
+          radial-gradient(70% 60% at 70% 110%, rgba(184, 216, 243, 0.06), transparent 70%),
+          #070708;
+        color: #f4f2ee;
+        font-family: 'Unbounded', 'Inter', system-ui, -apple-system, sans-serif;
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: 0.42em;
+        padding-left: 0.42em;
+        z-index: 9999;
+        transition: opacity 0.3s ease;
+      }
+      .boot.boot-hide {
+        opacity: 0;
+      }
+      .boot-logo {
+        width: 54px;
+        height: 54px;
+        border-radius: 16px;
+        filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 26px rgba(201, 184, 255, 0.18));
+        animation: bootpulse 2.4s ease-in-out infinite;
+      }
+      .boot-word {
+        margin-top: 8px;
+        font-size: 15px;
+        line-height: 1;
+      }
+      .boot-note {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-size: 7.5px;
+        font-weight: 600;
+        letter-spacing: 0.32em;
+        padding-left: 0.32em;
+        color: rgba(244, 242, 238, 0.38);
+        margin-top: -4px;
+      }
+      .boot span {
+        width: 46px;
+        height: 1px;
+        margin-top: 8px;
+        background: linear-gradient(90deg, transparent, rgba(244, 242, 238, 0.6), transparent);
+        animation: bootline 1.4s ease-in-out infinite;
+      }
+      @keyframes bootline {
+        0%,
+        100% {
+          opacity: 0.2;
+          transform: scaleX(0.6);
+        }
+        50% {
+          opacity: 1;
+          transform: scaleX(1);
+        }
+      }
+      @keyframes bootpulse {
+        0%,
+        100% {
+          opacity: 0.84;
+          transform: translateY(0) scale(0.985);
+        }
+        50% {
+          opacity: 1;
+          transform: translateY(-2px) scale(1);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="boot" class="boot">
+      <img class="boot-logo" src="./logo.svg" alt="" width="54" height="54" />
+      <div class="boot-word">PLATINUM</div>
+      <span></span>
+      <div class="boot-note">LOCAL MUSIC SYSTEM</div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

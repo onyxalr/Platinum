@@ -1,0 +1,10 @@
+node_modules/
+dist/
+dist-electron/
+release/
+resources/bin/yt-dlp
+*.log
+.DS_Store
+*.tsbuildinfo
+.env
+.env.*
