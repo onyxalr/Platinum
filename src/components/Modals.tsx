@@ -1,21 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import {
-  ArrowUpRight,
   Check,
   Copy,
   Download,
+  FileText,
   Heart,
+  Link2,
   ListMusic,
   ListPlus,
   Play,
   Plus,
   SkipForward,
+  Upload,
   X,
 } from 'lucide-react';
-import type { Playlist, Track } from '@shared/types';
-import { api } from '../lib/api';
-import { copyTrackLink, downloadTrack, openOnYouTube } from '../lib/actions';
+import type { Playlist } from '@shared/types';
+import { api, ApiError } from '../lib/api';
+import { copyTrackLink, downloadTrack } from '../lib/actions';
 import { usePlayerStore } from '../store/player';
 import { useUiStore, type Toast } from '../store/ui';
 import { colors } from '../theme';
@@ -78,9 +80,19 @@ export function TrackActionsModal() {
           <Text numberOfLines={1} style={{ color: colors.text, fontSize: 14.5, fontWeight: '650', letterSpacing: -0.3 }}>
             {track.title}
           </Text>
-          <Text numberOfLines={1} style={{ color: colors.textFaint, fontSize: 11.5, marginTop: 3 }}>
-            {track.artist}
-          </Text>
+          <Pressable
+            onPress={() => {
+              const artist = track.channelName || track.artist;
+              close();
+              useUiStore.getState().navigate({ name: 'artist', artist });
+            }}
+            className="artist-link"
+            style={{ alignSelf: 'flex-start', marginTop: 3 }}
+          >
+            <Text numberOfLines={1} style={{ color: colors.textFaint, fontSize: 11.5 }}>
+              {track.artist}
+            </Text>
+          </Pressable>
         </View>
         <IconButton icon={X} size={16} label="Закрыть" onPress={close} />
       </View>
@@ -138,16 +150,8 @@ export function TrackActionsModal() {
         />
         <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 7 }} />
         <MenuRow
-          icon={ArrowUpRight}
-          label="Открыть на YouTube"
-          onPress={() => {
-            openOnYouTube(track);
-            close();
-          }}
-        />
-        <MenuRow
           icon={Copy}
-          label="Скопировать ссылку"
+          label="Скопировать название"
           onPress={() => {
             void copyTrackLink(track);
             close();
@@ -304,6 +308,253 @@ export function CreatePlaylistModal() {
   );
 }
 
+type ImportMode = 'link' | 'text' | 'file';
+
+const IMPORT_MODES: Array<{ id: ImportMode; label: string; icon: typeof Link2 }> = [
+  { id: 'link', label: 'Ссылка', icon: Link2 },
+  { id: 'text', label: 'Список', icon: ListMusic },
+  { id: 'file', label: 'Файл', icon: Upload },
+];
+
+export function ImportModal() {
+  const open = useUiStore((state) => state.importOpen);
+  const [mode, setMode] = useState<ImportMode>('link');
+  const [url, setUrl] = useState('');
+  const [text, setText] = useState('');
+  const [name, setName] = useState('');
+  const [fileName, setFileName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setMode('link');
+    setUrl('');
+    setText('');
+    setName('');
+    setFileName('');
+    setBusy(false);
+    setError(null);
+  }, [open]);
+
+  if (!open) return null;
+  const close = () => useUiStore.getState().setImportOpen(false);
+
+  const submit = async () => {
+    setError(null);
+    if (mode === 'link' && !url.trim()) {
+      setError('Вставь ссылку на плейлист');
+      return;
+    }
+    if (mode !== 'link' && !text.trim()) {
+      setError(mode === 'file' ? 'Сначала выбери файл' : 'Вставь список треков');
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await api.importPlaylist({
+        url: mode === 'link' ? url.trim() : undefined,
+        text: mode === 'link' ? undefined : text,
+        name: name.trim() || undefined,
+      });
+      useUiStore.getState().toast(`Импортировано ${result.matched} из ${result.total}`);
+      if (result.skipped.length) {
+        useUiStore.getState().toast(`${result.skipped.length} треков не найдены`, 'error');
+      }
+      useUiStore.getState().bumpLibrary();
+      close();
+      useUiStore.getState().navigate({ name: 'playlist', id: result.playlist.id, title: result.playlist.name });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Не удалось импортировать плейлист');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const readFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 900_000) {
+      setError('Файл больше 900 КБ — используй список или ссылку');
+      return;
+    }
+    try {
+      const value = await file.text();
+      setText(value);
+      setFileName(file.name);
+      if (!name.trim()) setName(file.name.replace(/\.[^.]+$/, '').slice(0, 80));
+      setError(null);
+    } catch {
+      setError('Не удалось прочитать файл');
+    }
+  };
+
+  return (
+    <Modal onClose={close} width={500}>
+      <ModalHeader
+        title="Импорт из другого сервиса"
+        subtitle="Spotify, Apple Music, Яндекс Музыка — ссылка или экспорт"
+        onClose={close}
+      />
+      <View style={{ gap: 14 }}>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          {IMPORT_MODES.map((item) => {
+            const Icon = item.icon;
+            const active = mode === item.id;
+            return (
+              <Pressable
+                key={item.id}
+                onPress={() => {
+                  setMode(item.id);
+                  setError(null);
+                }}
+                className="tab-pill"
+                style={{
+                  height: 32,
+                  paddingHorizontal: 13,
+                  borderRadius: 999,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  borderWidth: 1,
+                  borderColor: active ? colors.borderStrong : colors.border,
+                  backgroundColor: active ? colors.surfaceStrong : 'transparent',
+                }}
+              >
+                <Icon size={13} color={active ? colors.text : colors.textFaint} strokeWidth={1.8} />
+                <Text style={{ color: active ? colors.text : colors.textFaint, fontSize: 11.5, fontWeight: '600' }}>
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {mode === 'link' ? (
+          <Field
+            label="Ссылка на плейлист"
+            value={url}
+            onChangeText={setUrl}
+            placeholder="https://open.spotify.com/playlist/…"
+            icon={Link2}
+            autoFocus
+          />
+        ) : mode === 'text' ? (
+          <View style={{ gap: 7 }}>
+            <Text style={{ color: colors.textDim, fontSize: 11.5, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase' }}>
+              Список треков
+            </Text>
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              multiline
+              placeholder={'Исполнитель — Название\nИсполнитель — Название\nили CSV / JSON / M3U'}
+              placeholderTextColor={colors.textFaint}
+              selectionColor={colors.lilac}
+              style={{
+                minHeight: 154,
+                maxHeight: 220,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: colors.border,
+                backgroundColor: colors.surface,
+                paddingHorizontal: 14,
+                paddingVertical: 12,
+                color: colors.text,
+                fontSize: 12.5,
+                lineHeight: 20,
+                fontFamily: 'var(--font-ui)',
+                outlineStyle: 'none',
+              }}
+            />
+          </View>
+        ) : (
+          <View style={{ gap: 8 }}>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".csv,.json,.txt,.m3u,.m3u8"
+              style={{ display: 'none' }}
+              onChange={readFile}
+            />
+            <Pressable
+              onPress={() => fileRef.current?.click()}
+              className="import-drop no-drag"
+              style={{
+                minHeight: 138,
+                borderRadius: 16,
+                borderWidth: 1,
+                borderStyle: 'dashed',
+                borderColor: text ? colors.borderStrong : colors.border,
+                backgroundColor: colors.surface,
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 9,
+                padding: 18,
+              }}
+            >
+              <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: colors.surfaceStrong, alignItems: 'center', justifyContent: 'center' }}>
+                <FileText size={18} color={text ? colors.lilac : colors.textDim} />
+              </View>
+              <Text style={{ color: colors.text, fontSize: 13, fontWeight: '600' }}>
+                {fileName || 'Выбрать CSV, JSON или M3U'}
+              </Text>
+              <Text style={{ color: colors.textFaint, fontSize: 10.5, textAlign: 'center', lineHeight: 16 }}>
+                Экспорт из Spotify, Apple Music или Яндекс Музыки. До 40 треков за один импорт.
+              </Text>
+            </Pressable>
+          </View>
+        )}
+
+        <Field
+          label="Название плейлиста"
+          value={name}
+          onChangeText={setName}
+          placeholder="Например, Из Spotify"
+          maxLength={80}
+        />
+
+        <View
+          className="import-note"
+          style={{
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: 'color-mix(in srgb, var(--lilac) 5%, transparent)',
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            flexDirection: 'row',
+            alignItems: 'flex-start',
+            gap: 8,
+          }}
+        >
+          <MusicIcon />
+          <Text style={{ color: colors.textFaint, fontSize: 10.5, lineHeight: 16, flex: 1 }}>
+            Platinum сопоставит каждый трек с официальным каталогом и сохранит совпадения в новый плейлист.
+            Импорт выполняется локально.
+          </Text>
+        </View>
+
+        {error ? <Text style={{ color: colors.danger, fontSize: 11.5, lineHeight: 16 }}>{error}</Text> : null}
+
+        <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'flex-end', marginTop: 2 }}>
+          <Button label="Отмена" variant="ghost" small onPress={close} />
+          <Button label="Импортировать" icon={Download} small loading={busy} onPress={submit} />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function MusicIcon() {
+  return (
+    <View style={{ width: 20, height: 20, borderRadius: 7, backgroundColor: 'var(--accent-soft)', alignItems: 'center', justifyContent: 'center' }}>
+      <ListPlus size={11} color={colors.lilac} />
+    </View>
+  );
+}
+
 export function Toasts() {
   const toasts = useUiStore((state) => state.toasts);
   if (!toasts.length) return null;
@@ -353,6 +604,7 @@ export function Modals() {
       <TrackActionsModal />
       <PlaylistPickerModal />
       <CreatePlaylistModal />
+      <ImportModal />
       <React.Suspense fallback={null}>
         <SettingsModal />
       </React.Suspense>

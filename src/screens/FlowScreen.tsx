@@ -143,7 +143,7 @@ function FlowPage({
               {track.artist}
             </Text>
             <Text style={{ color: FLOW_FAINT, fontSize: 11, marginTop: 10 }}>
-              {fmtTime(track.duration)} · YouTube · AAC
+              {fmtTime(track.duration)} · PLATINUM · AAC
             </Text>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 30 }}>

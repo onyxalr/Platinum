@@ -81,7 +81,7 @@ export function clamp(value: number, min: number, max: number): number {
 const THUMB_PATTERN = /\/(maxresdefault|hqdefault|mqdefault|sddefault|default)\.(jpg|webp)/;
 
 /**
- * YouTube stores every thumbnail size under the same video id. Requesting the
+ * Every thumbnail size lives under the same media id. Requesting the
  * right size dramatically cuts decode/paint cost for long grids: cards get the
  * 480px variant, large artwork gets 1280px only when it can actually use it.
  */

@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
-import { Music2, Play, Search, Shuffle, Sparkles, X } from 'lucide-react';
+import { BadgeCheck, Music2, Play, Search, Shuffle, Sparkles, X } from 'lucide-react';
 import type { SearchResponse } from '@shared/types';
 import { api } from '../lib/api';
+import { pluralRu } from '../lib/format';
 import { usePlayerStore } from '../store/player';
 import { useUiStore } from '../store/ui';
 import { colors, fonts } from '../theme';
@@ -123,7 +124,7 @@ export function SearchScreen() {
           <Text className="display" style={{ color: colors.text, fontSize: 42, letterSpacing: -1.2 }}>
             Что послушаем?
           </Text>
-          <Text style={{ color: colors.textFaint, fontSize: 10.5, marginBottom: 7 }}>YouTube · полные треки</Text>
+          <Text style={{ color: colors.textFaint, fontSize: 10.5, marginBottom: 7 }}>Официальный каталог · полные треки</Text>
         </View>
 
         <View style={{ position: 'relative', zIndex: 30 }}>
@@ -258,7 +259,7 @@ export function SearchScreen() {
               Начни с одной строки
             </Text>
             <Text style={{ color: colors.textFaint, fontSize: 12.5, lineHeight: 20, textAlign: 'center', maxWidth: 420, marginTop: 11 }}>
-              Исполнитель, название или настроение. Platinum найдёт аудио на YouTube и подтянет текст песни.
+              Исполнитель, название или настроение. Platinum найдёт полный трек и подтянет текст песни.
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 9, marginTop: 26, maxWidth: 520 }}>
               {QUICK.map((item) => (
@@ -306,6 +307,46 @@ export function SearchScreen() {
               </View>
             </View>
 
+            {data.artists?.length ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                className="no-scrollbar"
+                contentContainerStyle={{ gap: 9, paddingBottom: 18 }}
+              >
+                {data.artists.map((artist) => (
+                  <Pressable
+                    key={artist.name}
+                    onPress={() => useUiStore.getState().navigate({ name: 'artist', artist: artist.name })}
+                    className="artist-chip no-drag"
+                    style={{
+                      height: 46,
+                      paddingLeft: 6,
+                      paddingRight: 14,
+                      borderRadius: 999,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      backgroundColor: colors.surface,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 9,
+                    }}
+                  >
+                    <Artwork uri={artist.thumbnail} seed={artist.name} size={34} radius={17} />
+                    <View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Text style={{ color: colors.text, fontSize: 11.5, fontWeight: '600' }}>{artist.name}</Text>
+                        <BadgeCheck size={11} color={colors.lilac} strokeWidth={2.2} />
+                      </View>
+                      <Text style={{ color: colors.textFaint, fontSize: 9.5, marginTop: 1 }}>
+                        {artist.trackCount} {pluralRu(artist.trackCount, 'трек', 'трека', 'треков')} · страница
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : null}
+
             <View style={{ flexDirection: 'row', gap: 26, alignItems: 'flex-start' }}>
               {top ? (
                 <View
@@ -346,9 +387,16 @@ export function SearchScreen() {
                   <Text numberOfLines={2} style={{ color: colors.text, fontSize: 18, lineHeight: 23, fontWeight: '650', letterSpacing: -0.5, marginTop: 16 }}>
                     {top.title}
                   </Text>
-                  <Text numberOfLines={1} style={{ color: colors.textFaint, fontSize: 11.5, marginTop: 5 }}>
-                    {top.artist}
-                  </Text>
+                  <Pressable
+                    onPress={() => useUiStore.getState().navigate({ name: 'artist', artist: top.channelName || top.artist })}
+                    className="artist-link"
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5, alignSelf: 'flex-start' }}
+                  >
+                    <Text numberOfLines={1} style={{ color: colors.textFaint, fontSize: 11.5 }}>
+                      {top.artist}
+                    </Text>
+                    {top.verified ? <BadgeCheck size={11} color={colors.lilac} strokeWidth={2.2} /> : null}
+                  </Pressable>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                     <Pressable
                       onPress={() => usePlayerStore.getState().playTrack(top, tracks)}

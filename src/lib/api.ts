@@ -1,10 +1,12 @@
 import type {
   AccountPayload,
+  ArtistProfile,
   AuthResponse,
   DownloadItem,
   FlowResponse,
   HistoryItem,
   HomeFeed,
+  ImportResult,
   LibraryResponse,
   Lyrics,
   Playlist,
@@ -114,6 +116,16 @@ export const api = {
 
   search: (query: string, limit = 24) =>
     request<SearchResponse>(`/api/search?q=${encodeURIComponent(query)}&limit=${limit}`),
+
+  artist: (name: string) =>
+    request<ArtistProfile>(`/api/artist?name=${encodeURIComponent(name)}`),
+
+  importPlaylist: (input: { url?: string; text?: string; name?: string }) =>
+    request<ImportResult>('/api/import', {
+      method: 'POST',
+      body: body(input),
+      signal: AbortSignal.timeout(240_000),
+    }),
 
   suggest: (query: string) =>
     request<{ suggestions: string[] }>(`/api/suggest?q=${encodeURIComponent(query)}`),

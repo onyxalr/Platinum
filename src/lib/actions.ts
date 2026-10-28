@@ -15,18 +15,12 @@ export function downloadTrack(track: Track) {
     });
 }
 
-export function openOnYouTube(track: Track) {
-  const url = `https://www.youtube.com/watch?v=${track.id}`;
-  if (window.platinum) void window.platinum.openExternal(url);
-  else window.open(url, '_blank');
-}
-
 export async function copyTrackLink(track: Track) {
-  const url = `https://www.youtube.com/watch?v=${track.id}`;
+  const text = `${track.artist} — ${track.title}`;
   try {
-    await navigator.clipboard.writeText(url);
-    useUiStore.getState().toast('Ссылка скопирована');
+    await navigator.clipboard.writeText(text);
+    useUiStore.getState().toast('Название скопировано');
   } catch {
-    useUiStore.getState().toast('Не удалось скопировать ссылку', 'error');
+    useUiStore.getState().toast('Не удалось скопировать', 'error');
   }
 }

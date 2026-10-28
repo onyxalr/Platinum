@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import type { Track, YtDlpStatus } from '../shared/types';
+import type { ArtistProfile, ImportEntry, Track, YtDlpStatus } from '../shared/types';
 
 const MAX_BUFFER = 32 * 1024 * 1024;
 const execFileAsync = promisify(execFile);
@@ -65,7 +65,7 @@ function parseDuration(value: unknown): number {
  * uploads and collapsing duplicate video + audio uploads into one track.
  */
 const NON_MUSIC_TITLE =
-  /\b(podcast|interview|reaction|reacts?|review|unboxing|tutorial|lesson|course|lecture|trailer|teaser|gameplay|walkthrough|vlog|prank|challenge|comedy|stand[- ]?up|highlights?|news|documentary|behind the scenes|making of|explained|analysis|breakdown|how to|dance practice|choreography|karaoke|audiobook|audio book|full movie|movie clip|series|episode|shorts?|tiktok|meme|funny|blind date|first date|dating|girlfriend|boyfriend|relationship|couple|picks a|spent the night|sports?|football|soccer|basketball|boxing|ufc|fortnite|minecraft|roblox|gta|asmr|white noise|rain sounds|nature sounds|sleep sounds|meditation|affirmations|sound bath|full album|album review)\b/i;
+  /\b(podcast|interview|reaction|reacts?|review|unboxing|tutorial|lesson|course|lecture|trailer|teaser|gameplay|walkthrough|vlog|prank|challenge|comedy|stand[- ]?up|highlights?|news|documentary|behind the scenes|making of|explained|analysis|breakdown|how to|dance practice|choreography|karaoke|audiobook|audio book|full movie|movie clip|series|episode|shorts?|tiktok|meme|funny|blind date|first date|dating|girlfriend|boyfriend|relationship|couple|picks a|spent the night|sports?|football|soccer|basketball|boxing|ufc|fortnite|minecraft|roblox|gta|asmr|white noise|rain sounds|nature sounds|sleep sounds|meditation|affirmations|sound bath|full album|album review|full concert|concert film|live concert|dj set|radio show|talk show|late night show)\b/i;
 const NON_MUSIC_TITLE_RU =
   /(подкаст|интервью|реакц|обзор|влог|пранк|прикол|челлендж|геймплей|прохожд|новост|смешн|разоблач|эксперимент|секретн|проследил|предател|девушек|парней|женщин|мужчин|первое свидание|свидание с|хайп|фильм|сериал|серию|сезон|серия|детектив|триллер|боевик|комедия|мелодрама|ужасы|фантастика|смотреть|онлайн|премьер|кинопоиск|кинопорт|кинотеатр|документальн|телепередач|выпуск|эпизод|трейлер|тизер|сцен[аы] из|акт[её]ры|дубляж)/i;
 const NON_MUSIC_CHANNEL =
@@ -76,6 +76,10 @@ const MUSIC_SIGNAL =
   /\b(official\s*(audio|video|music video|lyric video)|lyrics?|audio|visualizer|music|song|track|album|single|remix|mix|beats?|instrumentals?|cover|acoustic|live at|session|edit|feat\.?|ft\.?|prod\.?|topic)\b/i;
 const MIX_SIGNAL =
   /\b(mix|playlist|play list|compilation|radio|beats? to|chill|study|focus|sleep|ambient|lo-?fi|instrumental|non[- ]?stop)\b/i;
+const VIDEO_SIGNAL =
+  /\b(official\s*(music\s*)?video|music video|video clip|videoclip|visuali[sz]er|lyric video|live performance|live session)\b/i;
+const LONG_FORM = /\b(\d+\s*(?:hour|hr)s?|full album|full concert|live concert|dj set|non[- ]?stop|livestream|live stream|24\/7)\b/i;
+const MAX_TRACK_SECONDS = 12 * 60;
 
 function canonical(value: string): string {
   return String(value || '')
@@ -109,7 +113,11 @@ function rankEntry(entry: any, query = ''): RankedTrack | null {
   if (entry.live_status && entry.live_status !== 'not_live') return null;
 
   const duration = parseDuration(entry.duration);
-  if (!duration || duration < 45 || duration > 20 * 60) return null;
+  if (!duration || duration < 45 || duration > MAX_TRACK_SECONDS) return null;
+  // Albums, concerts, DJ sets and radio compilations are not tracks, even when
+  // a verified artist uploaded them. Keep short songs only.
+  if (LONG_FORM.test(rawTitle)) return null;
+  if (MIX_SIGNAL.test(rawTitle) && duration > 8 * 60) return null;
 
   let title = cleanTitle(rawTitle);
   let artist = cleanArtist(rawChannel);
@@ -135,6 +143,7 @@ function rankEntry(entry: any, query = ''): RankedTrack | null {
   }
 
   const mix = MIX_SIGNAL.test(rawTitle);
+  const video = VIDEO_SIGNAL.test(rawTitle);
   const channelVerified = entry.channel_is_verified === true;
   const topicChannel = /-\s*topic$/i.test(rawChannel) || /^topic$/i.test(rawChannel);
   const vevoChannel = /vevo$/i.test(rawChannel);
@@ -153,15 +162,16 @@ function rankEntry(entry: any, query = ''): RankedTrack | null {
   if (!hasMusicTitle && !mix && !artistStyleTitle && !(trustedChannel && channelMatchesQuery)) return null;
 
   let score = 60;
-  if (topicChannel) score += 46;
-  else if (vevoChannel) score += 38;
-  else if (channelVerified) score += 15;
-  if (/official\s*audio/i.test(rawTitle)) score += 24;
-  else if (/lyrics?/i.test(rawTitle)) score += 13;
-  else if (/visualizer/i.test(rawTitle)) score += 8;
-  else if (/official\s*(music\s*)?video/i.test(rawTitle)) score += 5;
-  if (mix) score -= 4;
-  if (duration >= 90 && duration <= 720) score += 6;
+  if (topicChannel) score += 52;
+  else if (vevoChannel) score += 42;
+  else if (channelVerified) score += 18;
+  if (/official\s*audio/i.test(rawTitle)) score += 30;
+  else if (/lyrics?/i.test(rawTitle)) score += 14;
+  // Video uploads are still music, but audio-first results stream faster and
+  // are far less likely to hide interviews or long visual projects.
+  if (video) score -= 14;
+  if (mix) score -= 8;
+  if (duration >= 90 && duration <= 480) score += 8;
   if (/official/i.test(rawChannel)) score += 4;
   const artistKey = canonical(artist);
   const titleKey = canonical(title);
@@ -179,15 +189,23 @@ function rankEntry(entry: any, query = ''): RankedTrack | null {
   const key = `${canonical(title)}::${canonical(artist)}`;
   if (!canonical(title)) return null;
 
+  const channelId =
+    typeof entry.channel_id === 'string' && entry.channel_id
+      ? entry.channel_id
+      : /\/channel\/([A-Za-z0-9_-]+)/.exec(String(entry.channel_url || ''))?.[1];
+
   return {
     key,
     score,
     track: {
       id: entry.id,
       title,
-      artist: artist || 'YouTube',
+      artist: artist || cleanArtist(rawChannel) || 'Неизвестный исполнитель',
       duration,
       thumbnail: `https://i.ytimg.com/vi/${entry.id}/hqdefault.jpg`,
+      channelId,
+      channelName: cleanArtist(rawChannel) || rawChannel,
+      verified: channelVerified || topicChannel || vevoChannel,
     },
   };
 }
@@ -238,6 +256,7 @@ export class YtDlp {
   private error: string | null = null;
   private preparing: Promise<void> | null = null;
   private searchCache = new Map<string, SearchCacheEntry>();
+  private artistCache = new Map<string, { at: number; profile: ArtistProfile }>();
   private streams = new Map<string, { url: string; expiresAt: number }>();
   private downloading = new Map<string, Promise<{ filePath: string; size: number }>>();
   private readonly userDataDir: string;
@@ -392,6 +411,27 @@ export class YtDlp {
     return this.bin;
   }
 
+  private async runSearch(searchQuery: string, count: number): Promise<any[]> {
+    const bin = await this.readyBin();
+    const args = [
+      '--ignore-config',
+      '--no-warnings',
+      '--flat-playlist',
+      '--dump-single-json',
+      '--no-playlist',
+      '--socket-timeout',
+      '15',
+      `ytsearch${Math.min(50, Math.max(1, count))}:${searchQuery}`,
+    ];
+    const { stdout } = await execFileAsync(bin, args, {
+      timeout: 60_000,
+      maxBuffer: MAX_BUFFER,
+      env: { ...process.env, LC_ALL: 'en_US.UTF-8' },
+    });
+    const data = JSON.parse(stdout);
+    return (Array.isArray(data?.entries) ? data.entries : []) as any[];
+  }
+
   async search(query: string, limit = 24): Promise<Track[]> {
     const q = query.trim();
     if (!q) return [];
@@ -400,30 +440,11 @@ export class YtDlp {
     const cached = this.searchCache.get(cacheKey);
     if (cached && Date.now() - cached.at < 1000 * 60 * 12) return cached.tracks;
 
-    const bin = await this.readyBin();
     const best = new Map<string, RankedTrack>();
     const candidates = Math.min(50, Math.max(30, wanted * 2));
     const variants = queryVariants(q);
 
-    const run = async (searchQuery: string) => {
-      const args = [
-        '--ignore-config',
-        '--no-warnings',
-        '--flat-playlist',
-        '--dump-single-json',
-        '--no-playlist',
-        '--socket-timeout',
-        '15',
-        `ytsearch${candidates}:${searchQuery}`,
-      ];
-      const { stdout } = await execFileAsync(bin, args, {
-        timeout: 60_000,
-        maxBuffer: MAX_BUFFER,
-        env: { ...process.env, LC_ALL: 'en_US.UTF-8' },
-      });
-      const data = JSON.parse(stdout);
-      return (Array.isArray(data?.entries) ? data.entries : []) as any[];
-    };
+    const run = (searchQuery: string) => this.runSearch(searchQuery, candidates);
 
     const collect = (entries: any[]) => {
       for (const entry of entries) {
@@ -440,7 +461,7 @@ export class YtDlp {
     }
     if (settled.every((result) => result.status === 'rejected')) {
       const reason = settled.find((result) => result.status === 'rejected') as PromiseRejectedResult;
-      throw reason.reason instanceof Error ? reason.reason : new Error('YouTube недоступен');
+      throw reason.reason instanceof Error ? reason.reason : new Error('Музыкальный каталог недоступен');
     }
 
     // Some perfectly valid artists only match when the search engine is told
@@ -486,6 +507,130 @@ export class YtDlp {
       if (first) this.searchCache.delete(first);
     }
     return tracks;
+  }
+
+  /**
+   * Builds a verified artist profile from official catalogue search results.
+   * Topic/VEVO tracks win, then we keep only songs that actually belong to the
+   * requested artist so a generic name cannot open an unrelated page.
+   */
+  async artist(rawName: string): Promise<ArtistProfile | null> {
+    const name = rawName.trim();
+    if (!name) return null;
+    const cacheKey = canonical(name);
+    const cached = this.artistCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < 1000 * 60 * 30) return cached.profile;
+
+    const queries = [`${name} official audio`, `${name} - Topic`, name];
+    const settled = await Promise.allSettled(queries.map((query) => this.search(query, 32)));
+    const pool: Track[] = [];
+    const seen = new Set<string>();
+    for (const result of settled) {
+      if (result.status !== 'fulfilled') continue;
+      for (const track of result.value) {
+        if (seen.has(track.id)) continue;
+        seen.add(track.id);
+        pool.push(track);
+      }
+    }
+    if (!pool.length) return null;
+
+    const nameKey = canonical(name);
+    const belongs = (track: Track) => {
+      const artistKey = canonical(track.artist);
+      const channelKey = canonical(track.channelName || '');
+      return (
+        artistKey === nameKey ||
+        artistKey.includes(nameKey) ||
+        nameKey.includes(artistKey) ||
+        channelKey === nameKey ||
+        channelKey.includes(nameKey)
+      );
+    };
+    const matches = pool.filter(belongs);
+    // Some artists use a Latin transliteration on their official channel while
+    // the UI query is Cyrillic. If strict matching finds almost nothing, keep
+    // the already-ranked catalogue instead of showing an empty page.
+    const tracks = (matches.length >= 3 ? matches : pool).slice(0, 40);
+    if (!tracks.length) return null;
+
+    const official = tracks.find((track) => track.verified) || tracks[0];
+    const profile: ArtistProfile = {
+      name,
+      channelId: official.channelId,
+      thumbnail: tracks[0].thumbnail,
+      verified: tracks.some((track) => track.verified),
+      tracks,
+    };
+    this.artistCache.set(cacheKey, { at: Date.now(), profile });
+    if (this.artistCache.size > 60) {
+      const first = this.artistCache.keys().next().value;
+      if (first) this.artistCache.delete(first);
+    }
+    return profile;
+  }
+
+  /**
+   * Finds the closest Platinum playable track for an imported Spotify/Apple/
+   * Yandex row. Matching is strict on title and artist to avoid importing a
+   * completely different song with a similar name.
+   */
+  async resolveTrack(entry: ImportEntry): Promise<Track | null> {
+    const title = String(entry.title || '').trim();
+    const artist = String(entry.artist || '').trim();
+    if (!title) return null;
+    const query = [artist, title].filter(Boolean).join(' ');
+    let entries: any[];
+    try {
+      entries = await this.runSearch(query, 8);
+    } catch {
+      return null;
+    }
+
+    const wantTitle = canonical(title);
+    const wantArtist = canonical(artist);
+    let best: { track: Track; score: number } | null = null;
+    for (const raw of entries) {
+      const item = rankEntry(raw, query);
+      if (!item) continue;
+      const track = item.track;
+      const titleKey = canonical(track.title);
+      const artistKey = canonical(track.artist);
+      const titleMatch =
+        titleKey === wantTitle || titleKey.includes(wantTitle) || wantTitle.includes(titleKey);
+      const artistMatch =
+        !wantArtist || artistKey.includes(wantArtist) || wantArtist.includes(artistKey);
+      if (!titleMatch || !artistMatch) continue;
+
+      let score = 0;
+      if (titleKey === wantTitle) score += 55;
+      else score += 28;
+      if (wantArtist && artistKey === wantArtist) score += 40;
+      else if (artistMatch) score += 24;
+      if (track.verified) score += 5;
+      if (entry.duration && track.duration) {
+        const diff = Math.abs(track.duration - entry.duration);
+        if (diff <= 4) score += 14;
+        else if (diff <= 15) score += 7;
+        else if (diff > 60) score -= 24;
+      }
+      if (!best || score > best.score) best = { track, score };
+    }
+    return best && best.score >= 45 ? best.track : null;
+  }
+
+  async resolveMany(entries: ImportEntry[], concurrency = 3): Promise<Array<Track | null>> {
+    const results = new Array<Track | null>(entries.length).fill(null);
+    let cursor = 0;
+    const workers = Array.from({ length: Math.min(Math.max(1, concurrency), entries.length) }, async () => {
+      for (;;) {
+        const index = cursor++;
+        if (index >= entries.length) return;
+        results[index] = await this.resolveTrack(entries[index]).catch(() => null);
+      }
+    });
+    await Promise.all(workers);
+    return results;
   }
 
   async resolveStream(videoId: string): Promise<string> {
@@ -624,5 +769,6 @@ export class YtDlp {
 
   clearSearchCache() {
     this.searchCache.clear();
+    this.artistCache.clear();
   }
 }

@@ -5,9 +5,11 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type {
+  ArtistSummary,
   DownloadItem,
   FlowResponse,
   HomeFeed,
+  ImportResult,
   LibraryResponse,
   Mood,
   PlaylistDetail,
@@ -15,6 +17,7 @@ import type {
   Track,
 } from '../shared/types';
 import { Db } from './db';
+import { parseImportSource } from './import';
 import { YtDlp } from './ytdlp';
 import { hashPassword, hashToken, newToken, sessionTtl, validatePassword, validateUsername, verifyPassword } from './auth';
 import { lookupLyrics } from './lyrics';
@@ -108,7 +111,61 @@ function pickArtist(seed: string, offset: number, exclude: string[] = []): strin
 }
 
 function playableTrack(track: Track): boolean {
-  return track.duration > 0 && track.duration <= 20 * 60;
+  return track.duration > 0 && track.duration <= 12 * 60;
+}
+
+function artistKey(name: string): string {
+  return String(name || '')
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9а-яё]+/gi, ' ')
+    .trim();
+}
+
+/**
+ * Home and search both surface a small, verified artist shelf. Only artists
+ * whose tracks came from official Topic/VEVO/verified channels are included,
+ * so the shelf never advertises a random re-upload.
+ */
+function collectArtists(tracks: Track[], limit = 6): ArtistSummary[] {
+  const map = new Map<string, ArtistSummary>();
+  for (const track of tracks) {
+    if (!track.verified) continue;
+    // The official channel is a more stable artist identity than the credit
+    // string, which may list several collaborators for a single track.
+    const displayName = (track.channelName || track.artist || '').trim();
+    if (!displayName) continue;
+    const key = artistKey(displayName);
+    const creditKey = artistKey(track.artist);
+    if (!key || !creditKey) continue;
+    // Verified networks and label channels also upload music, but they are not
+    // artists. Only surface a channel when it is the credited act or a member of
+    // the credited collaboration (official channel vs. featured artists).
+    const officialChannel =
+      key === creditKey || creditKey.includes(key) || key.includes(creditKey);
+    if (!officialChannel) continue;
+    const existing = map.get(key);
+    if (existing) {
+      existing.trackCount += 1;
+      if (existing.tracks.length < 12) existing.tracks.push(track);
+      if (!existing.thumbnail) existing.thumbnail = track.thumbnail;
+      existing.verified = existing.verified || Boolean(track.verified);
+      existing.channelId = existing.channelId || track.channelId;
+    } else {
+      map.set(key, {
+        name: displayName,
+        channelId: track.channelId,
+        thumbnail: track.thumbnail,
+        verified: Boolean(track.verified),
+        trackCount: 1,
+        tracks: [track],
+      });
+    }
+  }
+  return [...map.values()]
+    .sort((a, b) => b.trackCount - a.trackCount)
+    .slice(0, limit);
 }
 
 interface ServerContext {
@@ -177,12 +234,17 @@ function sanitizeTrack(value: any): Track | null {
   if (!/^[A-Za-z0-9_-]{6,20}$/.test(id)) return null;
   const title = String(value.title || '').slice(0, 300).trim();
   if (!title) return null;
+  const channelId = String(value.channelId || '').slice(0, 80);
+  const channelName = String(value.channelName || '').slice(0, 200).trim();
   return {
     id,
     title,
-    artist: String(value.artist || 'YouTube').slice(0, 200).trim() || 'YouTube',
+    artist: String(value.artist || 'Неизвестный исполнитель').slice(0, 200).trim() || 'Неизвестный исполнитель',
     duration: Math.max(0, Math.min(24 * 60 * 60, Number(value.duration) || 0)),
     thumbnail: String(value.thumbnail || '').slice(0, 1000),
+    ...(channelId ? { channelId } : {}),
+    ...(channelName ? { channelName } : {}),
+    ...(value.verified === true ? { verified: true } : {}),
   };
 }
 
@@ -395,7 +457,7 @@ export function createApiServer(ctx: ServerContext) {
       await proxyAudio(videoId, req, res);
     } catch (err) {
       if (!res.headersSent) {
-        throw new HttpError(502, 'Не удалось получить аудиопоток YouTube');
+        throw new HttpError(502, 'Не удалось получить аудиопоток');
       }
       res.destroy();
     }
@@ -403,10 +465,14 @@ export function createApiServer(ctx: ServerContext) {
 
   async function homeFeed(user: any): Promise<HomeFeed> {
     const userId = String(user.id);
-    const cacheKey = `home:v4:${userId}:${bucket(1000 * 60 * 20)}`;
+    const cacheKey = `home:v6:${userId}:${bucket(1000 * 60 * 20)}`;
     const cached = db.getCache<HomeFeed>(cacheKey);
     if (cached) {
-      return { ...cached, recently: musicHistory(userId, 8) };
+      return {
+        ...cached,
+        recently: musicHistory(userId, 8),
+        artists: cached.artists?.length ? cached.artists : collectArtists([...cached.dailyMix, ...cached.forYou, ...cached.fresh]),
+      };
     }
 
     const likes = db.likes(userId);
@@ -442,7 +508,7 @@ export function createApiServer(ctx: ServerContext) {
     const failed = results.every((r) => r.status === 'rejected');
     if (failed) {
       const reason = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
-      const message = reason?.reason instanceof Error ? reason.reason.message : 'YouTube недоступен';
+      const message = reason?.reason instanceof Error ? reason.reason.message : 'Музыкальный каталог недоступен';
       throw new HttpError(503, message);
     }
 
@@ -453,6 +519,7 @@ export function createApiServer(ctx: ServerContext) {
       fresh,
       recently: musicHistory(userId, 8),
       moods: MOODS,
+      artists: collectArtists([...dailyMix, ...forYou, ...fresh]),
     };
     db.setCache(cacheKey, feed);
     return feed;
@@ -639,11 +706,63 @@ export function createApiServer(ctx: ServerContext) {
 
     if (pathname === '/api/search' && method === 'GET') {
       const q = (url.searchParams.get('q') || '').trim();
-      if (!q) return json(res, 200, { query: '', tracks: [], top: null } satisfies SearchResponse);
+      if (!q) return json(res, 200, { query: '', tracks: [], top: null, artists: [] } satisfies SearchResponse);
       const limit = Math.min(Math.max(Number(url.searchParams.get('limit')) || 24, 1), 40);
       const tracks = await ytdlp.search(q, limit);
-      const payload: SearchResponse = { query: q, tracks, top: tracks[0] ?? null };
+      const payload: SearchResponse = {
+        query: q,
+        tracks,
+        top: tracks[0] ?? null,
+        artists: collectArtists(tracks, 4),
+      };
       return json(res, 200, payload);
+    }
+
+    if (pathname === '/api/artist' && method === 'GET') {
+      const name = (url.searchParams.get('name') || '').trim().slice(0, 120);
+      if (!name) throw new HttpError(400, 'Не указан исполнитель');
+      const profile = await ytdlp.artist(name);
+      if (!profile || !profile.tracks.length) throw new HttpError(404, 'Исполнитель не найден');
+      return json(res, 200, profile);
+    }
+
+    if (pathname === '/api/import' && method === 'POST') {
+      const body = await readJson(req);
+      const parsed = await parseImportSource({
+        url: typeof body.url === 'string' ? body.url : undefined,
+        text: typeof body.text === 'string' ? body.text : undefined,
+      });
+      const entries = parsed.entries.slice(0, 40);
+      const resolved = await ytdlp.resolveMany(entries, 3);
+      const tracks: Track[] = [];
+      const used = new Set<string>();
+      const skipped: string[] = [];
+      entries.forEach((entry, index) => {
+        const track = resolved[index];
+        if (!track) {
+          skipped.push(`${entry.artist ? `${entry.artist} — ` : ''}${entry.title}`);
+          return;
+        }
+        if (used.has(track.id)) return;
+        used.add(track.id);
+        tracks.push(track);
+      });
+      if (!tracks.length) {
+        throw new HttpError(422, 'Не удалось найти эти треки в доступном каталоге');
+      }
+      const name = String(body.name || '').trim().slice(0, 80) || parsed.title;
+      const playlist = db.createPlaylist(userId, name, `Импорт · ${parsed.source}`);
+      for (const track of tracks) db.addToPlaylist(userId, playlist.id, track);
+      const detail = db.playlist(userId, playlist.id);
+      if (!detail) throw new HttpError(500, 'Не удалось создать плейлист');
+      const payload: ImportResult = {
+        playlist: detail,
+        matched: tracks.length,
+        total: entries.length,
+        skipped,
+        source: parsed.source,
+      };
+      return json(res, 201, payload);
     }
 
     if (pathname === '/api/suggest' && method === 'GET') {

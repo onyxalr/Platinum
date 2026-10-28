@@ -21,6 +21,7 @@ const SearchScreen = React.lazy(() => import('./screens/SearchScreen').then((mod
 const FlowScreen = React.lazy(() => import('./screens/FlowScreen').then((module) => ({ default: module.FlowScreen })));
 const LibraryScreen = React.lazy(() => import('./screens/LibraryScreen').then((module) => ({ default: module.LibraryScreen })));
 const PlaylistScreen = React.lazy(() => import('./screens/PlaylistScreen').then((module) => ({ default: module.PlaylistScreen })));
+const ArtistScreen = React.lazy(() => import('./screens/ArtistScreen').then((module) => ({ default: module.ArtistScreen })));
 const AccountScreen = React.lazy(() => import('./screens/AccountScreen').then((module) => ({ default: module.AccountScreen })));
 
 function BootSplash() {
@@ -88,10 +89,10 @@ function EngineBanner() {
   const failed = ytdlp.state === 'error';
   const downloading = ytdlp.state === 'downloading' || ytdlp.state === 'missing';
   const label = failed
-    ? 'Движок YouTube не запустился'
+    ? 'Музыкальный движок не запустился'
     : downloading
-      ? `Готовлю движок YouTube${ytdlp.progress > 0 ? ` · ${ytdlp.progress}%` : ''}`
-      : 'Проверяю движок YouTube';
+      ? `Готовлю музыкальный движок${ytdlp.progress > 0 ? ` · ${ytdlp.progress}%` : ''}`
+      : 'Проверяю музыкальный движок';
 
   return (
     <View
@@ -168,6 +169,8 @@ function renderScreen(route: Route) {
       return <LibraryScreen />;
     case 'playlist':
       return <PlaylistScreen id={route.id} />;
+    case 'artist':
+      return <ArtistScreen />;
     case 'account':
       return <AccountScreen />;
     default:
@@ -190,6 +193,7 @@ function useKeyboardShortcuts() {
         }
         const ui = useUiStore.getState();
         if (ui.createPlaylistOpen) ui.setCreatePlaylistOpen(false);
+        else if (ui.importOpen) ui.setImportOpen(false);
         else if (ui.settingsOpen) ui.setSettingsOpen(false);
         else if (ui.trackMenu) ui.setTrackMenu(null);
         else if (ui.pickerTrack) ui.setPickerTrack(null);
@@ -267,11 +271,13 @@ function Shell() {
   const screenKey =
     route.name === 'playlist'
       ? `${route.name}:${route.id}`
-      : route.name === 'library'
-        ? `${route.name}:${route.tab || 'playlists'}`
-        : route.name === 'search'
-          ? `${route.name}:${route.query || ''}`
-          : route.name;
+      : route.name === 'artist'
+        ? `${route.name}:${route.artist}`
+        : route.name === 'library'
+          ? `${route.name}:${route.tab || 'playlists'}`
+          : route.name === 'search'
+            ? `${route.name}:${route.query || ''}`
+            : route.name;
 
   return (
     <View className="app-shell" style={{ flex: 1, overflow: 'hidden' }}>

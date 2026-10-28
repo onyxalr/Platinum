@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
-import { Clock3, Download, FolderOpen, Heart, Library, ListMusic, Music2, Play, Plus, Shuffle, Trash2 } from 'lucide-react';
+import { Clock3, Download, FileUp, FolderOpen, Heart, Library, ListMusic, Music2, Play, Plus, Shuffle, Trash2 } from 'lucide-react';
 import type { DownloadItem } from '@shared/types';
 import { api } from '../lib/api';
 import { fmtSize, pluralRu, relativeTime } from '../lib/format';
@@ -189,13 +189,22 @@ export function LibraryScreen() {
           {pluralRu(playlists.length, 'плейлист', 'плейлиста', 'плейлистов')} · {history.length} в истории
         </Text>
       </View>
-      <Button
-        label="Новый плейлист"
-        icon={Plus}
-        variant="outline"
-        small
-        onPress={() => useUiStore.getState().setCreatePlaylistOpen(true)}
-      />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Button
+          label="Импорт"
+          icon={FileUp}
+          variant="soft"
+          small
+          onPress={() => useUiStore.getState().setImportOpen(true)}
+        />
+        <Button
+          label="Новый плейлист"
+          icon={Plus}
+          variant="outline"
+          small
+          onPress={() => useUiStore.getState().setCreatePlaylistOpen(true)}
+        />
+      </View>
     </View>
   );
 
@@ -290,6 +299,27 @@ export function LibraryScreen() {
               <Plus size={18} color={colors.textDim} />
             </View>
             <Text style={{ color: colors.textDim, fontSize: 12 }}>Новый плейлист</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => useUiStore.getState().setImportOpen(true)}
+            className="card-hover no-drag"
+            style={{
+              width: cardWidth,
+              height: cardWidth + 38,
+              borderRadius: 18,
+              borderWidth: 1,
+              borderStyle: 'dashed',
+              borderColor: colors.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+            }}
+          >
+            <View style={{ width: 40, height: 40, borderRadius: 14, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center' }}>
+              <FileUp size={18} color={colors.textDim} />
+            </View>
+            <Text style={{ color: colors.textDim, fontSize: 12 }}>Импорт из сервиса</Text>
           </Pressable>
         </View>
       ) : tab === 'likes' ? (

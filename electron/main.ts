@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { Db } from './db';
 import { YtDlp } from './ytdlp';
 import { createApiServer } from './server';
+import { SPLASH_URL } from './splash';
 
 app.setName('Platinum');
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
@@ -41,8 +42,97 @@ if (!gotLock) {
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+let splashWindow: BrowserWindow | null = null;
+let splashStartedAt = 0;
+let splashTimer: NodeJS.Timeout | null = null;
+const SPLASH_MIN_MS = 1500;
+const SPLASH_MAX_MS = 12_000;
 let db: Db | null = null;
 let api: Awaited<ReturnType<typeof createApiServer>> | null = null;
+
+function createSplash() {
+  splashStartedAt = Date.now();
+  const win = new BrowserWindow({
+    width: 400,
+    height: 264,
+    show: false,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    hasShadow: false,
+    title: 'Platinum',
+    webPreferences: {
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      spellcheck: false,
+    },
+  });
+
+  win.setMenuBarVisibility(false);
+  win.setAlwaysOnTop(true, 'screen-saver');
+  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  win.once('ready-to-show', () => {
+    if (!win.isDestroyed() && splashWindow === win) win.showInactive();
+  });
+  win.on('closed', () => {
+    if (splashWindow === win) splashWindow = null;
+  });
+  void win.loadURL(SPLASH_URL);
+  splashWindow = win;
+
+  // Never let a slow renderer keep the desktop splash on screen forever.
+  splashTimer = setTimeout(() => {
+    if (mainWindow) revealMain(mainWindow);
+    else closeSplash();
+  }, SPLASH_MAX_MS);
+  return win;
+}
+
+function closeSplash() {
+  if (splashTimer) {
+    clearTimeout(splashTimer);
+    splashTimer = null;
+  }
+  const win = splashWindow;
+  splashWindow = null;
+  if (!win || win.isDestroyed()) return;
+
+  let opacity = 1;
+  const timer = setInterval(() => {
+    if (win.isDestroyed()) {
+      clearInterval(timer);
+      return;
+    }
+    opacity -= 0.13;
+    if (opacity <= 0) {
+      clearInterval(timer);
+      win.destroy();
+      return;
+    }
+    win.setOpacity(opacity);
+  }, 26);
+}
+
+function revealMain(win: BrowserWindow) {
+  const delay = Math.max(0, SPLASH_MIN_MS - (Date.now() - splashStartedAt));
+  setTimeout(() => {
+    if (win.isDestroyed()) {
+      closeSplash();
+      return;
+    }
+    if (!win.isVisible()) win.show();
+    win.focus();
+    closeSplash();
+  }, delay);
+}
 
 function createWindow(apiBase: string) {
   const iconPath = app.isPackaged
@@ -71,7 +161,10 @@ function createWindow(apiBase: string) {
   });
 
   win.setMenuBarVisibility(false);
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    if (splashWindow && !splashWindow.isDestroyed()) revealMain(win);
+    else win.show();
+  });
 
   win.on('maximize', () => win.webContents.send('window:maximized', true));
   win.on('unmaximize', () => win.webContents.send('window:maximized', false));
@@ -177,6 +270,10 @@ app.whenReady().then(async () => {
   });
   session.defaultSession.setSpellCheckerEnabled(false);
 
+  // The native splash appears above the desktop immediately, before SQLite,
+  // the local server and the renderer are ready.
+  if (!process.env.PLATINUM_SHOT) createSplash();
+
   const userData = app.getPath('userData');
   const downloadsDir = path.join(userData, 'downloads');
   fs.mkdirSync(downloadsDir, { recursive: true });
@@ -212,6 +309,12 @@ app.on('window-all-closed', () => {
 });
 
 app.on('before-quit', () => {
+  if (splashTimer) {
+    clearTimeout(splashTimer);
+    splashTimer = null;
+  }
+  if (splashWindow && !splashWindow.isDestroyed()) splashWindow.destroy();
+  splashWindow = null;
   api?.server.close();
   db?.close();
   api = null;

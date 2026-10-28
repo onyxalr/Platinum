@@ -20,7 +20,7 @@ import { useUiStore } from '../store/ui';
 import { useCustomizationStore, type Appearance } from '../store/customization';
 import { colors, fonts } from '../theme';
 import { fmtTime } from '../lib/format';
-import { downloadTrack, openOnYouTube } from '../lib/actions';
+import { downloadTrack } from '../lib/actions';
 import { Artwork, Eq, IconButton, PlayGlyph, Slider, Spinner } from './ui';
 import { LyricsPane } from './Lyrics';
 
@@ -295,7 +295,7 @@ export function NowPlaying() {
             </Text>
             <Pressable
               onPress={() => {
-                useUiStore.getState().navigate({ name: 'search', query: current.artist });
+                useUiStore.getState().navigate({ name: 'artist', artist: current.channelName || current.artist });
               }}
               className="link-hover"
               style={{ alignSelf: focus ? 'center' : 'flex-start', marginTop: compact ? 4 : 7 }}
@@ -411,9 +411,24 @@ export function NowPlaying() {
                 </Pressable>
               ))}
               <View style={{ flex: 1 }} />
-              <Pressable onPress={() => openOnYouTube(current)} className="link-hover">
-                <Text style={{ color: colors.textFaint, fontSize: 10 }}>YouTube ↗</Text>
-              </Pressable>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                  paddingHorizontal: 8,
+                  height: 22,
+                  borderRadius: 999,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  backgroundColor: colors.surface,
+                }}
+              >
+                <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: current.verified ? colors.lilac : colors.textFaint }} />
+                <Text style={{ color: colors.textFaint, fontSize: 8.5, fontWeight: '600', letterSpacing: 0.8 }}>
+                  {current.verified ? 'ПРОВЕРЕН' : 'КАТАЛОГ'}
+                </Text>
+              </View>
             </View>
             {tab === 'lyrics' ? <LyricsPane key={current.id} track={current} /> : <QueuePane />}
           </View>

@@ -333,7 +333,7 @@ export function AccountScreen() {
                 }}
               />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '600' }}>Движок YouTube</Text>
+                <Text style={{ color: colors.text, fontSize: 12.5, fontWeight: '600' }}>Музыкальный движок</Text>
                 <Text numberOfLines={1} style={{ color: colors.textFaint, fontSize: 10, marginTop: 2 }}>
                   {engineLabel}
                   {ytdlp?.version ? ` · ${ytdlp.version}` : ''}
@@ -421,7 +421,7 @@ export function AccountScreen() {
 
       <Text style={{ color: colors.textFaint, fontSize: 9.5, textAlign: 'center', marginTop: 30, lineHeight: 16 }}>
         Platinum — локальный музыкальный сервис. Аккаунт, история и коллекция не покидают этот компьютер.
-        {'\n'}Музыка предоставляется YouTube. Слушай только для личного пользования.
+        {'\n'}Музыка доступна только для личного прослушивания.
       </Text>
     </ScrollView>
   );

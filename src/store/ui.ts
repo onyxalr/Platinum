@@ -9,6 +9,7 @@ export type Route =
   | { name: 'search'; query?: string }
   | { name: 'library'; tab?: LibraryTab }
   | { name: 'playlist'; id: string; title?: string }
+  | { name: 'artist'; artist: string }
   | { name: 'account' };
 
 export type ToastKind = 'default' | 'error' | 'success';
@@ -28,6 +29,7 @@ interface UiState {
   trackMenu: Track | null;
   pickerTrack: Track | null;
   createPlaylistOpen: boolean;
+  importOpen: boolean;
   settingsOpen: boolean;
   playerOpen: boolean;
   playerTab: 'lyrics' | 'queue';
@@ -43,6 +45,7 @@ interface UiState {
   setTrackMenu: (track: Track | null) => void;
   setPickerTrack: (track: Track | null) => void;
   setCreatePlaylistOpen: (open: boolean) => void;
+  setImportOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   toast: (message: string, kind?: ToastKind) => void;
   dismissToast: (id: number) => void;
@@ -59,6 +62,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   trackMenu: null,
   pickerTrack: null,
   createPlaylistOpen: false,
+  importOpen: false,
   settingsOpen: false,
   playerOpen: false,
   playerTab: 'lyrics',
@@ -92,6 +96,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   setTrackMenu: (trackMenu) => set({ trackMenu }),
   setPickerTrack: (pickerTrack) => set({ pickerTrack }),
   setCreatePlaylistOpen: (createPlaylistOpen) => set({ createPlaylistOpen }),
+  setImportOpen: (importOpen) => set({ importOpen }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
 
   toast: (message, kind = 'default') => {

@@ -147,7 +147,7 @@ export function AuthScreen() {
           </View>
 
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
-            {['YouTube без VPN', 'Локальные аккаунты', 'Тексты LRCLIB'].map((item, index) => (
+            {['Музыка без VPN', 'Локальные аккаунты', 'Тексты песен'].map((item, index) => (
               <React.Fragment key={item}>
                 {index > 0 ? <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: colors.textFaint }} /> : null}
                 <Text style={{ color: colors.textFaint, fontSize: 10, letterSpacing: 0.4 }}>{item}</Text>

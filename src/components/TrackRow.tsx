@@ -1,12 +1,18 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { MoreHorizontal, Pause, Play, Trash2 } from 'lucide-react';
+import { BadgeCheck, MoreHorizontal, Pause, Play, Trash2 } from 'lucide-react';
 import type { Track } from '@shared/types';
 import { usePlayerStore } from '../store/player';
 import { useUiStore } from '../store/ui';
 import { colors } from '../theme';
 import { fmtTime } from '../lib/format';
 import { Artwork, Eq } from './ui';
+
+function openArtist(event: any, track: Track) {
+  event?.stopPropagation?.();
+  const artist = track.channelName || track.artist;
+  if (artist) useUiStore.getState().navigate({ name: 'artist', artist });
+}
 
 export const TrackCard = React.memo(function TrackCard({
   track,
@@ -100,9 +106,16 @@ export const TrackCard = React.memo(function TrackCard({
         <Text numberOfLines={1} style={{ color: active ? colors.lilac : colors.text, fontSize: 13, fontWeight: '600', letterSpacing: -0.2 }}>
           {track.title}
         </Text>
-        <Text numberOfLines={1} style={{ color: colors.textFaint, fontSize: 11.5, marginTop: 3 }}>
+      </Pressable>
+      <Pressable
+        onPress={(event: any) => openArtist(event, track)}
+        className="artist-link no-drag"
+        style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3, alignSelf: 'flex-start', maxWidth: '100%' }}
+      >
+        <Text numberOfLines={1} style={{ color: colors.textFaint, fontSize: 11.5 }}>
           {track.artist}
         </Text>
+        {track.verified ? <BadgeCheck size={11} color={colors.lilac} strokeWidth={2.2} /> : null}
       </Pressable>
     </View>
   );
@@ -185,9 +198,16 @@ export const TrackRow = React.memo(function TrackRow({
         <Text numberOfLines={1} style={{ color: active ? colors.lilac : colors.text, fontSize: compact ? 12.5 : 13.5, fontWeight: '550', letterSpacing: -0.15 }}>
           {track.title}
         </Text>
-        <Text numberOfLines={1} style={{ color: colors.textFaint, fontSize: 11, marginTop: 2 }}>
-          {track.artist}
-        </Text>
+        <Pressable
+          onPress={(event: any) => openArtist(event, track)}
+          className="artist-link no-drag"
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, alignSelf: 'flex-start', maxWidth: '100%' }}
+        >
+          <Text numberOfLines={1} style={{ color: colors.textFaint, fontSize: 11 }}>
+            {track.artist}
+          </Text>
+          {track.verified ? <BadgeCheck size={11} color={colors.lilac} strokeWidth={2.2} /> : null}
+        </Pressable>
       </View>
 
       {liked ? (

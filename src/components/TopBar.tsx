@@ -19,6 +19,8 @@ function routeTitle(route: Route): string {
       return 'Библиотека';
     case 'playlist':
       return route.title || 'Плейлист';
+    case 'artist':
+      return route.artist;
     case 'account':
       return 'Аккаунт';
     default:
@@ -77,7 +79,7 @@ export function TopBar() {
           )}
           <Text style={{ color: ytdlp?.state === 'error' ? colors.danger : colors.textDim, fontSize: 10.5, fontWeight: '550' }}>
             {ytdlp?.state === 'error'
-              ? 'Движок YouTube'
+              ? 'Музыкальный движок'
               : ytdlp?.state === 'downloading'
                 ? `Движок ${ytdlp.progress}%`
                 : 'Движок…'}

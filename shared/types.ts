@@ -5,6 +5,27 @@ export interface Track {
   duration: number;
   thumbnail: string;
   album?: string;
+  /** Verified channel metadata helps Platinum link tracks to artist pages. */
+  channelId?: string;
+  channelName?: string;
+  verified?: boolean;
+}
+
+export interface ArtistSummary {
+  name: string;
+  channelId?: string;
+  thumbnail: string;
+  verified: boolean;
+  trackCount: number;
+  tracks: Track[];
+}
+
+export interface ArtistProfile {
+  name: string;
+  channelId?: string;
+  thumbnail: string;
+  verified: boolean;
+  tracks: Track[];
 }
 
 export interface User {
@@ -64,6 +85,7 @@ export interface HomeFeed {
   fresh: Track[];
   recently: HistoryItem[];
   moods: Mood[];
+  artists: ArtistSummary[];
 }
 
 export interface LyricLine {
@@ -81,6 +103,21 @@ export interface SearchResponse {
   query: string;
   tracks: Track[];
   top: Track | null;
+  artists: ArtistSummary[];
+}
+
+export interface ImportEntry {
+  title: string;
+  artist: string;
+  duration?: number;
+}
+
+export interface ImportResult {
+  playlist: PlaylistDetail;
+  matched: number;
+  total: number;
+  skipped: string[];
+  source: string;
 }
 
 export interface FlowResponse {

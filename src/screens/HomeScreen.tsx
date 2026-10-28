@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { ArrowUpRight, Music2, Play, Sparkles } from 'lucide-react';
-import type { HomeFeed, Mood } from '@shared/types';
+import { ArrowUpRight, BadgeCheck, Music2, Play, Sparkles } from 'lucide-react';
+import type { ArtistSummary, HomeFeed, Mood } from '@shared/types';
 import { api } from '../lib/api';
-import { greeting as greetingForHour } from '../lib/format';
+import { greeting as greetingForHour, pluralRu } from '../lib/format';
 import { useAsync } from '../hooks/useAsync';
 import { useAuthStore } from '../store/auth';
 import { usePlayerStore } from '../store/player';
@@ -167,6 +167,29 @@ function Hero({ feed }: { feed: HomeFeed }) {
   );
 }
 
+function ArtistTile({ artist }: { artist: ArtistSummary }) {
+  return (
+    <Pressable
+      onPress={() => useUiStore.getState().navigate({ name: 'artist', artist: artist.name })}
+      className="artist-tile no-drag"
+      style={{ width: 142, alignItems: 'center' }}
+    >
+      <View style={{ position: 'relative' }}>
+        <Artwork uri={artist.thumbnail} seed={artist.name} size={124} radius={62} />
+        <View className="artist-tile-badge">
+          <BadgeCheck size={15} color={colors.accentInk} strokeWidth={2.4} />
+        </View>
+      </View>
+      <Text numberOfLines={1} style={{ color: colors.text, fontSize: 12.5, fontWeight: '600', marginTop: 12, letterSpacing: -0.2, maxWidth: 136 }}>
+        {artist.name}
+      </Text>
+      <Text style={{ color: colors.textFaint, fontSize: 10, marginTop: 3 }}>
+        {artist.trackCount} {pluralRu(artist.trackCount, 'трек', 'трека', 'треков')}
+      </Text>
+    </Pressable>
+  );
+}
+
 function MoodTile({ mood }: { mood: Mood }) {
   return (
     <Pressable
@@ -239,6 +262,17 @@ export function HomeScreen() {
       <Header feed={data} />
       <Hero feed={data} />
 
+      {data.artists?.length ? (
+        <View style={{ marginTop: 38 }}>
+          <SectionHeader title="Проверенные исполнители" subtitle="Официальные каналы и артисты с полным каталогом" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 22, paddingRight: 20 }} className="no-scrollbar">
+            {data.artists.map((artist) => (
+              <ArtistTile key={artist.name} artist={artist} />
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+
       {data.forYou.length ? (
         <View style={{ marginTop: 38 }}>
           <SectionHeader title="Для тебя" subtitle="Подобрано по твоим прослушиваниям" />
@@ -263,7 +297,7 @@ export function HomeScreen() {
 
       {data.fresh.length ? (
         <View style={{ marginTop: 36 }}>
-          <SectionHeader title="Свежее" subtitle="Новые находки из YouTube" />
+          <SectionHeader title="Свежее" subtitle="Новые находки из официального каталога" />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 18, paddingRight: 20 }} className="no-scrollbar">
             {data.fresh.map((track) => (
               <TrackCard key={track.id} track={track} queue={data.fresh} />

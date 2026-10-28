@@ -1298,7 +1298,7 @@ function EngineTab() {
 
   return (
     <>
-      <Section title="Движок YouTube" hint="Platinum использует локальный yt-dlp. VPN не требуется.">
+      <Section title="Музыкальный движок" hint="Platinum использует локальный движок. VPN не требуется.">
         <View
           style={{
             borderRadius: 16,
@@ -1322,7 +1322,7 @@ function EngineTab() {
             <Text style={{ color: ytdlp?.state === 'error' ? colors.danger : colors.textDim, fontSize: 10.5 }}>{stateLabel}</Text>
           </View>
           <Text style={{ color: colors.textFaint, fontSize: 10.5, marginTop: 8, lineHeight: 16 }}>
-            {ytdlp?.version ? `yt-dlp ${ytdlp.version}` : 'Автоматическая загрузка бинарника yt-dlp'}
+            {ytdlp?.version ? `Версия движка ${ytdlp.version}` : 'Автоматическая подготовка движка'}
           </Text>
           {ytdlp?.state === 'downloading' ? (
             <View style={{ height: 3, borderRadius: 3, backgroundColor: colors.surfaceStrong, marginTop: 11, overflow: 'hidden' }}>
@@ -1330,7 +1330,7 @@ function EngineTab() {
             </View>
           ) : null}
           {ytdlp?.state === 'error' ? (
-            <Text style={{ color: colors.danger, fontSize: 10.5, marginTop: 9 }}>{ytdlp.error || 'Не удалось скачать yt-dlp'}</Text>
+            <Text style={{ color: colors.danger, fontSize: 10.5, marginTop: 9 }}>{ytdlp.error || 'Не удалось подготовить движок'}</Text>
           ) : null}
           {ytdlp?.path ? (
             <Text numberOfLines={1} style={{ color: colors.textFaint, fontSize: 9.5, marginTop: 10, opacity: 0.8 }}>
@@ -1379,7 +1379,7 @@ function DataTab() {
       </Section>
       <Section title="Приватность" hint="Platinum не отправляет историю прослушивания на серверы.">
         <Text style={{ color: colors.textFaint, fontSize: 11.5, lineHeight: 18 }}>
-          Потоки запрашиваются напрямую у YouTube через yt-dlp. Аккаунты, токены и плейлисты не покидают устройство.
+          Потоки запрашиваются напрямую через локальный музыкальный движок. Аккаунты, токены и плейлисты не покидают устройство.
           Текст песен загружается с LRCLIB только при открытии трека.
         </Text>
       </Section>
@@ -1448,7 +1448,7 @@ function AboutTab() {
             Версия {info?.version || '0.1.0'} · React Native · Electron · SQLite
           </Text>
           <View style={{ flexDirection: 'row', gap: 7, marginTop: 18 }}>
-            {['LOCAL FIRST', 'YT-DLP', 'LRCLIB'].map((tag) => (
+            {['LOCAL FIRST', 'OFFLINE', 'LRCLIB'].map((tag) => (
               <View
                 key={tag}
                 style={{
@@ -1467,8 +1467,8 @@ function AboutTab() {
           </View>
         </View>
         <Text style={{ color: colors.textFaint, fontSize: 10.5, lineHeight: 17 }}>
-          Потоки YouTube доступны только для личного прослушивания. Проект не связан с YouTube. Обложки, тексты и
-          метаданные принадлежат их правообладателям.
+          Музыка доступна только для личного прослушивания. Обложки, тексты и метаданные принадлежат их
+          правообладателям.
         </Text>
       </Section>
     </>
