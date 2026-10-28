@@ -1,8 +1,12 @@
 # Platinum
 
-**Platinum** — локальный музыкальный плеер для Linux с премиальным интерфейсом на React Native. Музыка ищется и играет через локальный музыкальный движок, а библиотека, аккаунты, плейлисты, история и офлайн-загрузки хранятся только на компьютере. Без облака, подписок и рекламы.
+**Platinum** — локальный музыкальный плеер для Linux с премиальным интерфейсом на React Native Web. Музыка ищется и играет через локальный музыкальный движок, а библиотека, аккаунты, плейлисты, история и офлайн-загрузки хранятся только на компьютере. Без облака, подписок и рекламы.
 
 Renderer работает на React Native Web внутри Electron, backend — Node.js в главном процессе. Наружу уходят только запросы к музыкальному каталогу и LRCLIB.
+
+<p align="center">
+  <img src="docs/screenshots/home.jpg" alt="Platinum — главная" width="100%">
+</p>
 
 ## Возможности
 
@@ -19,6 +23,48 @@ Renderer работает на React Native Web внутри Electron, backend �
 - **Аккаунты** — локальная регистрация и вход, scrypt-хеши, гостевой режим, сессии на 30 дней.
 - **Офлайн** — скачивание аудио в `downloads` и воспроизведение без сети.
 - **Русский интерфейс** на всём пути: от входа до настроек и пустых состояний.
+
+## Дизайн
+
+<p align="center">
+  <a href="docs/teaser/platinum-edit.mp4">
+    <img src="docs/teaser/teaser.gif" alt="Platinum — тизер интерфейса" width="84%">
+  </a>
+</p>
+
+<p align="center">
+  <sub><a href="docs/teaser/platinum-edit.mp4">Смотреть тизер · 30 секунд · 1080p</a> · музыка написана специально для Platinum</sub>
+</p>
+
+Все кадры сняты в собранном приложении на Linux, без мокапов и рендеров.
+
+<p align="center">
+  <img src="docs/screenshots/search.jpg" alt="Поиск" width="49%">
+  <img src="docs/screenshots/artist.jpg" alt="Исполнитель" width="49%">
+  <br>
+  <sub><b>Поиск</b> — только музыка, без клипов и роликов · <b>Исполнитель</b> — проверенный каталог артиста</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/flow.jpg" alt="Поток" width="49%">
+  <img src="docs/screenshots/now-playing.jpg" alt="Сейчас играет" width="49%">
+  <br>
+  <sub><b>Поток</b> — бесконечная лента рекомендаций · <b>Сейчас играет</b> — обложка, текст и очередь</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/import.jpg" alt="Импорт" width="49%">
+  <img src="docs/screenshots/playlist.jpg" alt="Плейлист" width="49%">
+  <br>
+  <sub><b>Импорт</b> — ссылка Spotify или файл · <b>Плейлист</b> — 38 треков уже в библиотеке</sub>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/library.jpg" alt="Библиотека" width="49%">
+  <img src="docs/screenshots/settings.jpg" alt="Настройки" width="49%">
+  <br>
+  <sub><b>Библиотека</b> — плейлисты, история и офлайн · <b>Настройки</b> — палитры, шрифты и движение</sub>
+</p>
 
 ## Музыка, а не видео
 
@@ -43,7 +89,7 @@ Renderer работает на React Native Web внутри Electron, backend �
 - Совпадения сохраняются в новый плейлист; ненайденные строки показываются в отчёте.
 - Разбор и сопоставление выполняются локально, без загрузки аккаунта и cookies.
 
-## Дизайн и кастомизация
+## Кастомизация
 
 Внешний вид полностью собирается из runtime-токенов: ни один экран не зашит в один пресет.
 

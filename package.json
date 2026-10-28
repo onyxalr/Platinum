@@ -2,8 +2,23 @@
   "name": "platinum",
   "version": "0.1.0",
   "private": true,
-  "description": "Platinum — премиальный стриминговый плеер для Linux на React Native",
-  "homepage": "https://platinum.app",
+  "description": "Platinum — локальный музыкальный плеер для Linux на Electron и React Native Web",
+  "homepage": "https://github.com/onyxalr/Platinum",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/onyxalr/Platinum.git"
+  },
+  "bugs": {
+    "url": "https://github.com/onyxalr/Platinum/issues"
+  },
+  "keywords": [
+    "music-player",
+    "electron",
+    "react",
+    "linux",
+    "local-first",
+    "material-you"
+  ],
   "desktopName": "Platinum",
   "author": {
     "name": "Platinum",
